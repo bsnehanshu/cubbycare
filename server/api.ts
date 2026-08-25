@@ -144,6 +144,28 @@ app.get('/api/providers/:id/review-summary', async (req, res) => {
   }
 })
 
+app.get('/api/providers/:id/translate', async (req, res) => {
+  const provider_id = Number(req.params.id)
+  if (!getProvider(provider_id)) return res.status(404).json({ error: 'not found' })
+  try {
+    const { translateProvider } = await import('./translate.ts')
+    res.json(await translateProvider(provider_id))
+  } catch (err) {
+    res.status(502).json({ error: `translation failed: ${String(err instanceof Error ? err.message : err)}` })
+  }
+})
+
+app.post('/api/translate', async (req, res) => {
+  const text = String(req.body?.text ?? '').trim()
+  if (!text) return res.status(400).json({ error: 'text required' })
+  try {
+    const { translateToJapanese } = await import('./translate.ts')
+    res.json({ lang: 'ja', text: await translateToJapanese(text) })
+  } catch (err) {
+    res.status(502).json({ error: `translation failed: ${String(err instanceof Error ? err.message : err)}` })
+  }
+})
+
 app.post('/api/chat', async (req, res) => {
   try {
     const { conciergeChat } = await import('./chat.ts')

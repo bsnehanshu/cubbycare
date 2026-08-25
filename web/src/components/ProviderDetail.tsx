@@ -1,5 +1,12 @@
-import { useEffect, useState } from 'react'
-import { getProvider, getReviewSummary, requestBooking, type ProviderDetail as PD } from '../lib/api'
+import { useEffect, useRef, useState } from 'react'
+import {
+  getProvider,
+  getReviewSummary,
+  requestBooking,
+  translateProvider,
+  type ProviderDetail as PD,
+  type TranslatedProvider,
+} from '../lib/api'
 import { AMENITY_META, AGE_BAND_META, DAY_LABELS, TIER_META, formatAge } from '../lib/labels'
 import { TierBadge } from './TierBadge'
 import { MapPanel } from './MapPanel'
@@ -188,9 +195,18 @@ export function ProviderDetailView({ id, onBack }: { id: number; onBack: () => v
   const [booking, setBooking] = useState({ parent_name: '', child_age_months: 24, date: '', slot: 'am', notes: '' })
   const [bookingResult, setBookingResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [bookingBusy, setBookingBusy] = useState(false)
+  const [ja, setJa] = useState<TranslatedProvider | null>(null)
+  const [jaOn, setJaOn] = useState(false)
+  const [jaBusy, setJaBusy] = useState(false)
+  const [jaError, setJaError] = useState<string | null>(null)
+  const jaResummarised = useRef(false)
 
   useEffect(() => {
     getProvider(id).then(setProvider)
+    setJa(null)
+    setJaOn(false)
+    setJaError(null)
+    jaResummarised.current = false
   }, [id])
 
   useEffect(() => {
@@ -200,6 +216,37 @@ export function ProviderDetailView({ id, onBack }: { id: number; onBack: () => v
       .then((r) => setSummary(r.summary))
       .finally(() => setSummaryLoading(false))
   }, [id, provider?.reviews.length])
+
+  const loadJa = async () => {
+    setJaBusy(true)
+    setJaError(null)
+    try {
+      setJa(await translateProvider(id))
+      setJaOn(true)
+    } catch (err) {
+      setJaError(String(err instanceof Error ? err.message : err))
+    } finally {
+      setJaBusy(false)
+    }
+  }
+
+  // The AI review summary arrives after the first paint — if it landed after we translated,
+  // re-run the agent once so the Japanese view isn't missing it. Guarded by a ref: if the
+  // translation still comes back without a summary, don't keep retrying.
+  useEffect(() => {
+    if (!jaOn || !summary || !ja || ja.review_summary || jaResummarised.current) return
+    jaResummarised.current = true
+    void loadJa()
+  }, [jaOn, summary, ja?.review_summary])
+
+  const toggleJa = () => {
+    if (jaOn) return setJaOn(false)
+    if (ja) return setJaOn(true)
+    void loadJa()
+  }
+
+  const jaCred = (credId: number) => (jaOn ? ja?.credentials.find((c) => c.id === credId) : undefined)
+  const jaReview = (reviewId: number) => (jaOn ? ja?.reviews.find((r) => r.id === reviewId)?.text : undefined)
 
   if (!provider) return <div className="grid h-full place-items-center text-ink-soft">Loading…</div>
 
@@ -223,9 +270,29 @@ export function ProviderDetailView({ id, onBack }: { id: number; onBack: () => v
 
   return (
     <div className="mx-auto h-full max-w-5xl overflow-y-auto px-4 py-6">
-      <button onClick={onBack} className="mb-4 text-sm font-semibold text-marigold-deep hover:underline">
-        ← Back to search
-      </button>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <button onClick={onBack} className="text-sm font-semibold text-marigold-deep hover:underline">
+          ← Back to search
+        </button>
+        <div className="flex items-center gap-2">
+          {jaError && <span className="text-xs text-red-700">⚠️ {jaError}</span>}
+          <button
+            onClick={toggleJa}
+            disabled={jaBusy}
+            aria-pressed={jaOn}
+            className={`rounded-full border px-3 py-1.5 text-sm font-bold transition disabled:opacity-40 ${
+              jaOn ? 'border-sky/50 bg-sky/15 text-sky' : 'border-ink/15 bg-white text-ink-soft hover:text-ink'
+            }`}
+          >
+            {jaBusy ? '翻訳中…' : jaOn ? '🇯🇵 日本語で表示中' : '🇯🇵 日本語で読む'}
+          </button>
+        </div>
+      </div>
+      {jaOn && (
+        <p className="mb-3 text-xs text-ink-soft">
+          このプロフィールは翻訳エージェント（Claude）が日本語にしています。施設名・番号・日付は原文のままです。
+        </p>
+      )}
 
       <div className="rise-in rounded-(--radius-cubby) border border-ink/8 bg-white p-6 shadow-(--shadow-card)">
         <div className="flex flex-wrap items-start gap-4">
@@ -250,7 +317,7 @@ export function ProviderDetailView({ id, onBack }: { id: number; onBack: () => v
           </div>
         </div>
 
-        <p className="mt-4 text-ink-soft">{provider.bio}</p>
+        <p className="mt-4 text-ink-soft">{(jaOn && ja?.bio) || provider.bio}</p>
 
         <div className="mt-5 grid gap-5 md:grid-cols-2">
           <section>
@@ -287,17 +354,22 @@ export function ProviderDetailView({ id, onBack }: { id: number; onBack: () => v
 
             <h2 className="mt-5 font-display text-lg font-semibold">Credentials</h2>
             <ul className="mt-2 space-y-2">
-              {provider.credentials.map((c) => (
-                <li key={c.id} className="flex items-start gap-2 rounded-xl border border-ink/8 bg-paper p-2.5 text-sm">
-                  <span>{c.status === 'verified' ? '✅' : c.status === 'pending' ? '⏳' : '❌'}</span>
-                  <span>
-                    <span className="font-semibold">{c.kind}</span>
-                    {c.issuer && <span className="text-ink-soft"> · {c.issuer}</span>}
-                    {c.expiry && <span className="text-ink-soft"> · expires {c.expiry}</span>}
-                    {c.details && <p className="text-xs text-ink-soft">{c.details}</p>}
-                  </span>
-                </li>
-              ))}
+              {provider.credentials.map((c) => {
+                const t = jaCred(c.id)
+                return (
+                  <li key={c.id} className="flex items-start gap-2 rounded-xl border border-ink/8 bg-paper p-2.5 text-sm">
+                    <span>{c.status === 'verified' ? '✅' : c.status === 'pending' ? '⏳' : '❌'}</span>
+                    <span>
+                      <span className="font-semibold">{t?.kind ?? c.kind}</span>
+                      {c.issuer && <span className="text-ink-soft"> · {t?.issuer ?? c.issuer}</span>}
+                      {c.expiry && (
+                        <span className="text-ink-soft"> · {jaOn ? `有効期限 ${c.expiry}` : `expires ${c.expiry}`}</span>
+                      )}
+                      {c.details && <p className="text-xs text-ink-soft">{t?.details ?? c.details}</p>}
+                    </span>
+                  </li>
+                )
+              })}
               {!provider.credentials.length && <li className="text-sm text-ink-soft">None on file yet.</li>}
             </ul>
             {provider.type === 'center' && provider.verified_tier < 3 && (
@@ -310,7 +382,9 @@ export function ProviderDetailView({ id, onBack }: { id: number; onBack: () => v
               <MapPanel providers={[provider]} />
             </div>
 
-            <h2 className="mt-5 font-display text-lg font-semibold">What parents say</h2>
+            <h2 className="mt-5 font-display text-lg font-semibold">
+              {jaOn ? '保護者の声' : 'What parents say'}
+            </h2>
             {summaryLoading && (
               <p className="mt-2 flex items-center gap-1 text-sm text-ink-soft">
                 <span className="think-dot">●</span>
@@ -321,7 +395,8 @@ export function ProviderDetailView({ id, onBack }: { id: number; onBack: () => v
             )}
             {summary && (
               <p className="mt-2 rounded-2xl border border-sage/30 bg-sage/10 p-3 text-sm">
-                <span className="font-semibold text-sage-deep">✨ AI summary:</span> {summary}
+                <span className="font-semibold text-sage-deep">{jaOn ? '✨ AIまとめ:' : '✨ AI summary:'}</span>{' '}
+                {(jaOn && ja?.review_summary) || summary}
               </p>
             )}
             <ul className="mt-2 space-y-2">
@@ -332,7 +407,7 @@ export function ProviderDetailView({ id, onBack }: { id: number; onBack: () => v
                     <span className="text-ink/20">{'★'.repeat(5 - r.rating)}</span>
                     <span className="ml-2 text-xs font-normal text-ink-soft">{r.author}</span>
                   </p>
-                  <p className="mt-1">{r.text}</p>
+                  <p className="mt-1">{jaReview(r.id) ?? r.text}</p>
                 </li>
               ))}
               {!provider.reviews.length && <li className="text-sm text-ink-soft">No reviews yet.</li>}
