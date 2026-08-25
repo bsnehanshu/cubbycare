@@ -1,0 +1,109 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+@theme {
+  --color-paper: #fbf6ec;
+  --color-cream: #f5edda;
+  --color-ink: #1f3327;
+  --color-ink-soft: #48604f;
+  --color-marigold: #e8843c;
+  --color-marigold-deep: #c96a26;
+  --color-sage: #7fa167;
+  --color-sage-deep: #5d7f4a;
+  --color-sky: #5c8bab;
+  --color-gold: #c99118;
+  --color-blush: #f3d9c4;
+
+  --font-display: "Fraunces", "Georgia", serif;
+  --font-body: "Karla", "Avenir", sans-serif;
+
+  --shadow-card: 0 2px 4px rgba(31, 51, 39, 0.05), 0 10px 24px -8px rgba(31, 51, 39, 0.14);
+  --shadow-pop: 0 4px 8px rgba(31, 51, 39, 0.08), 0 18px 40px -12px rgba(31, 51, 39, 0.22);
+  --radius-cubby: 1.25rem;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  /* subtle paper grain */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+}
+
+/* Leaflet fit + theme */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  font-family: var(--font-body);
+  background: var(--color-cream);
+}
+.leaflet-popup-content-wrapper {
+  border-radius: 1rem;
+  box-shadow: var(--shadow-pop);
+}
+.cubby-pin {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50% 50% 50% 4px;
+  transform: rotate(-45deg);
+  border: 2.5px solid #fff;
+  box-shadow: 0 3px 8px rgba(31, 51, 39, 0.35);
+  cursor: pointer;
+  transition: scale 120ms ease;
+}
+.cubby-pin:hover {
+  scale: 1.12;
+}
+.cubby-pin > span {
+  transform: rotate(45deg);
+  font-size: 17px;
+  line-height: 1;
+}
+
+/* soft scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(31, 51, 39, 0.25) transparent;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    translate: 0 14px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+.rise-in {
+  animation: rise-in 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes drawer-up {
+  from {
+    translate: 0 100%;
+  }
+  to {
+    translate: 0 0;
+  }
+}
+.drawer-up {
+  animation: drawer-up 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes think-bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40% { transform: translateY(-4px); opacity: 1; }
+}
+.think-dot { animation: think-bounce 1.2s infinite; }
+.think-dot:nth-child(2) { animation-delay: 0.15s; }
+.think-dot:nth-child(3) { animation-delay: 0.3s; }
