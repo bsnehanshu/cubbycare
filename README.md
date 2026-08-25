@@ -11,9 +11,9 @@ Childcare you can trust, all over San Francisco. A trust-first childcare registr
 | 2 | Credentialed | Upload a CPR card / ECE degree — **Claude reads and verifies the document** |
 | 3 | ★ Licensed | **An agent drives a real browser** through California's live CCL registry to confirm the facility number |
 
-Plus: an AI concierge that searches and books from the live registry, and a **trust-check swarm** — three specialist agents (credentials, state license, reviews) fan out in parallel and a coordinator synthesizes a parent-facing trust report.
+Plus: an AI concierge that searches and books from the live registry, a **trust-check swarm** — three specialist agents (credentials, state license, reviews) fan out in parallel and a coordinator synthesizes a parent-facing trust report — and a **Japanese localisation agent** that renders any profile in natural Japanese for Japanese-speaking SF families.
 
-**The kicker: the app IS an MCP server.** Web app, REST API, and any MCP client share the same seven tools over one registry.
+**The kicker: the app IS an MCP server.** Web app, REST API, and any MCP client share the same eight tools over one registry.
 
 ## Prerequisites
 
@@ -35,6 +35,7 @@ Phone demo: `npm run web` binds to the LAN — open `http://<your-ip>:5173` on t
 - **Credential OCR**: register a provider, upload `seed/certs/cpr-cert.png` → badge flips to Credentialed
 - **Live license check**: real CCL facility numbers that verify live: `384004665` (Amigos de Presidio Heights), `384001195`, `380506527`. Mock fallback kicks in automatically if the state site is down
 - **Swarm**: any provider page → "Run the swarm"
+- **日本語**: any provider page → "🇯🇵 日本語で読む" — the localisation agent translates the bio, credentials, reviews and AI summary; results are cached, so the second toggle is instant. The concierge also answers in Japanese if you write to it in Japanese
 - **Emergency concierge**: "I need backup care near the Mission in the next 2 hours for my 18-month-old"
 - **MCP**: `claude mcp add cubbycare -- npx tsx server/mcp.ts` — then ask Claude Code for a Saturday sitter
 
@@ -45,6 +46,7 @@ web app (React PWA) ─┐
 Claude Code (MCP) ───┼─→ tools.ts (one tool catalog) → core.ts + SQLite
 concierge (Bedrock) ─┘
         specialists: verify.ts (Fable 5 doc OCR) · license.ts (Playwright MCP → ccld.dss.ca.gov)
+                     translate.ts (Haiku 4.5 → Japanese, cached in the translations table)
         swarm.ts: coordinator fans out credentials/license/reviews in parallel → trust report
 ```
 

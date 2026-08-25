@@ -139,6 +139,29 @@ export const TOOLS: ToolDef[] = [
     },
     execute: (input) => getReviewSummary(Number(input.provider_id)),
   },
+  {
+    name: 'translate_to_japanese',
+    description:
+      'Translate CubbyCare content into natural Japanese for a Japanese-speaking parent. Pass provider_id to localise a whole provider profile (bio, credentials, parent reviews, AI review summary), or text to translate an arbitrary passage — for example your own reply before sending it. Use this whenever the parent writes in Japanese or asks for Japanese.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        provider_id: { type: 'integer', description: 'Translate this provider\'s whole profile' },
+        text: { type: 'string', description: 'Translate this passage of English text' },
+      },
+    },
+    execute: async (input) => {
+      const { translateProvider, translateToJapanese } = await import('./translate.ts')
+      if (input.provider_id != null) {
+        const id = Number(input.provider_id)
+        return (await translateProvider(id)) ?? { error: `No provider with id ${id}` }
+      }
+      if (typeof input.text === 'string' && input.text.trim()) {
+        return { lang: 'ja', text: await translateToJapanese(input.text) }
+      }
+      return { error: 'provide either provider_id or text' }
+    },
+  },
 ]
 
 export async function executeTool(name: string, input: Record<string, unknown>) {

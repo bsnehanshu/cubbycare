@@ -8,6 +8,7 @@ import { seed } from './seed.ts'
 
 seed()
 
+// translate_to_japanese is absent on purpose: it writes to the translation cache.
 const READ_ONLY = new Set(['search_providers', 'get_provider', 'get_booking_status', 'summarize_reviews'])
 
 const server = new Server(

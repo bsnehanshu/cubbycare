@@ -63,6 +63,17 @@ db.exec(`
     author TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  -- Translation cache: keyed by target language + sha256 of the source payload, so a
+  -- re-request for unchanged text never hits the model twice.
+  CREATE TABLE IF NOT EXISTS translations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lang TEXT NOT NULL,
+    source_hash TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (lang, source_hash)
+  );
 `)
 
 export const AMENITIES = [

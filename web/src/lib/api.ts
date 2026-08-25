@@ -126,6 +126,23 @@ export async function getReviewSummary(providerId: number): Promise<{ summary: s
   return res.json()
 }
 
+export type TranslatedProvider = {
+  provider_id: number
+  lang: 'ja'
+  cached: boolean
+  name: string
+  bio: string | null
+  review_summary: string | null
+  credentials: Array<{ id: number; kind: string; issuer: string | null; details: string | null }>
+  reviews: Array<{ id: number; text: string }>
+}
+
+export async function translateProvider(providerId: number): Promise<TranslatedProvider> {
+  const res = await fetch(`/api/providers/${providerId}/translate`)
+  if (!res.ok) throw new Error((await res.json()).error ?? 'translation failed')
+  return res.json()
+}
+
 // Concierge stream protocol: NDJSON lines
 // {type:'text', delta} | {type:'tool', name, input} | {type:'tool_result', name, summary} | {type:'done'} | {type:'error', message}
 export type ChatEvent =
